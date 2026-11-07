@@ -177,7 +177,14 @@ struct UpdateRows: View {
                 Button("Télécharger") { updates.openDownload() }.buttonStyle(.glassProminent).controlSize(.small)
             }
         } else {
-            Text("Version \(updates.currentVersion)").font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Text(updates.status.map { "Version \(updates.currentVersion) · \($0)" } ?? "Version \(updates.currentVersion)")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if updates.enabled {
+                    Button("Vérifier") { Task { await updates.check() } }.buttonStyle(.plain).font(.caption)
+                }
+            }
         }
     }
 }

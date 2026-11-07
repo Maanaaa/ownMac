@@ -20,7 +20,8 @@ Nécessite macOS 26 ou plus récent et un Mac Apple Silicon. L'app n'est pas not
 ## Compiler
 
 ```
-./build.sh   # compile, installe dans ~/Applications et crée OwnMac.zip dans ~/Library/Caches/OwnMac-build
+./build.sh             # compile, installe dans ~/Applications et crée OwnMac.zip dans ~/Library/Caches/OwnMac-build
+./build.sh --release   # crée seulement le zip à publier, sans toucher à l'app installée
 ```
 
 ## Licence

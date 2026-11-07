@@ -59,6 +59,11 @@ final class IslandModel: ObservableObject {
                                        subtitle: "À télécharger depuis Réglages", tint: .blue), for: 6)
             }
         }
+        nc.addObserver(forName: .ownmacReady, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in
+                self?.show(IslandToast(icon: "sparkles", title: "OwnMac est prêt", subtitle: "Survole l'encoche pour commencer", tint: .blue), for: 5)
+            }
+        }
         nc.addObserver(forName: .ownmacCopied, object: nil, queue: .main) { [weak self] n in
             let text = n.object as? String ?? ""
             Task { @MainActor in self?.showCopied(text) }

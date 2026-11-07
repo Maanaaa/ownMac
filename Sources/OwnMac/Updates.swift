@@ -21,6 +21,7 @@ final class UpdateChecker: ObservableObject {
         }
     }
     @Published private(set) var available: Release?
+    @Published private(set) var status: String?
 
     private var timer: Timer?
 
@@ -44,8 +45,16 @@ final class UpdateChecker: ObservableObject {
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               (response as? HTTPURLResponse)?.statusCode == 200,
-              let release = Self.parse(data),
-              Self.isNewer(release.version, than: currentVersion) else { return }
+              let release = Self.parse(data) else {
+            status = "Vérification impossible pour l'instant"
+            return
+        }
+        guard Self.isNewer(release.version, than: currentVersion) else {
+            available = nil
+            status = "OwnMac est à jour"
+            return
+        }
+        status = nil
         available = release
         let key = "updates.notified"
         guard UserDefaults.standard.string(forKey: key) != release.version else { return }
