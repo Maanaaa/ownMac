@@ -11,7 +11,8 @@ final class PresenceMonitor: NSObject, ObservableObject, AVCaptureVideoDataOutpu
     @Published var status = ""
 
     private let session = AVCaptureSession()
-    private let queue = DispatchQueue(label: "ownmac.presence")
+    private let queue = DispatchQueue(label: "ownmac.presence")          // callbacks vidéo + état
+    private let sessionQueue = DispatchQueue(label: "ownmac.session")      // start/stop caméra (jamais depuis le callback)
     private var configured = false
     private var timer: Timer?
     private var screenOff = false
@@ -92,21 +93,21 @@ final class PresenceMonitor: NSObject, ObservableObject, AVCaptureVideoDataOutpu
         checking = true
         checkStart = Date()
         lastAnalysis = .distantPast
-        session.startRunning()
+        sessionQueue.async { self.session.startRunning() }
     }
 
     private func endCheck(faceFound: Bool) {
         guard checking else { return }
         checking = false
         lastCheckEnd = Date()
-        session.stopRunning()
+        sessionQueue.async { self.session.stopRunning() }
         if !faceFound && idleSeconds >= Double(delay) {   // toujours inactif : on verrouille
             DispatchQueue.main.async { Self.lockScreen() }
         }
     }
 
     private func abortCheck() {
-        queue.async { if self.checking { self.checking = false; self.lastCheckEnd = Date(); self.session.stopRunning() } }
+        queue.async { if self.checking { self.checking = false; self.lastCheckEnd = Date(); self.sessionQueue.async { self.session.stopRunning() } } }
     }
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
