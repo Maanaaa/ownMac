@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OwnMac</title>
+<meta name="description" content="Une app légère pour la barre de menus de macOS : île animée sur l'encoche, alertes de surcharge, presse-papier, stats et réglages cachés.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23111'/><rect x='8' y='13' width='16' height='6' rx='3' fill='%23fff'/></svg>">
+<style>
+:root{--bg:#f4f3ef;--ink:#121212;--soft:#5d5d58;--line:#dfddd5;--card:#fff;--orange:#ff8a1f;--pink:#ff375f;--blue:#0a84ff;--green:#30d158;--r:26px;color-scheme:light}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:17px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+h1,h2,h3{font-family:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:-.025em;line-height:1.05}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+nav{display:flex;justify-content:space-between;align-items:center;height:64px;font-weight:600}
+nav a{text-decoration:none}
+nav .gh{font-weight:500;color:var(--soft)}
+nav .gh:hover{color:var(--ink)}
+
+/* L'île */
+.stage{position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:5;display:flex;justify-content:center}
+.island{background:#000;color:#fff;width:190px;height:32px;border-radius:0 0 16px 16px;overflow:hidden;position:relative;transition:width .55s cubic-bezier(.3,1.35,.5,1),height .55s cubic-bezier(.3,1.35,.5,1),border-radius .45s;box-shadow:0 14px 34px -14px rgba(0,0,0,.5)}
+.island.big{width:370px;height:86px;border-radius:0 0 28px 28px}
+.state{position:absolute;inset:0;display:flex;align-items:center;gap:12px;padding:30px 20px 0;opacity:0;transition:opacity .25s}
+.state.on{opacity:1;transition-delay:.15s}
+.dot{flex:none;width:36px;height:36px;border-radius:50%;display:grid;place-items:center}
+.dot svg{width:17px;height:17px;fill:#fff}
+.state b{display:block;font:600 15px/1.25 ui-rounded,-apple-system,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.state span{display:block;font-size:13px;line-height:1.3;color:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.state>div:last-child{min-width:0}
+
+.hero{text-align:center;padding:76px 0 84px}
+.hero h1{font-size:clamp(46px,8.6vw,88px);font-weight:800;text-wrap:balance}
+.hero p{max-width:600px;margin:22px auto 0;font-size:clamp(18px,2.2vw,21px);color:var(--soft)}
+.cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+.btn{display:inline-flex;align-items:center;gap:9px;padding:15px 26px;border-radius:999px;font-weight:600;text-decoration:none;transition:transform .15s}
+.btn:hover{transform:translateY(-2px)}
+.btn:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.btn.primary{background:#000;color:#fff}
+.btn.ghost{border:1px solid var(--line);background:#fff}
+.btn svg{width:18px;height:18px;fill:currentColor}
+.hero .req{margin-top:16px;font-size:14px}
+
+section{padding:56px 0}
+section h2{font-size:clamp(32px,4.6vw,46px);font-weight:800;margin-bottom:12px}
+.lead{color:var(--soft);max-width:600px;margin-bottom:34px}
+.bento{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:28px;grid-column:span 2;display:flex;flex-direction:column;min-width:0}
+.card.wide{grid-column:span 3}
+.card h3{font-size:23px;font-weight:700;margin-bottom:8px}
+.card p{color:var(--soft);font-size:16px}
+.card.dark{background:#000;border-color:#000;color:#fff}
+.card.dark p{color:rgba(255,255,255,.65)}
+.demo{margin-top:auto;padding-top:24px}
+.alert{display:flex;gap:12px;align-items:center;background:#1b1b1d;border-radius:18px;padding:12px 14px}
+.alert .ic{flex:none;width:36px;height:36px;border-radius:10px;background:linear-gradient(#ffa64d,var(--orange));display:grid;place-items:center}
+.alert svg{width:18px;height:18px;fill:#fff}
+.alert b{display:block;font-size:14px}
+.alert span{display:block;font-size:12.5px;color:rgba(255,255,255,.6)}
+.alert i{margin-left:auto;font-style:normal;font-size:13px;font-weight:600;color:var(--orange)}
+.alert>div{min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips span{background:var(--bg);border-radius:999px;padding:6px 13px;font-size:14px}
+.clip{display:grid;gap:7px}
+.clip div{background:var(--bg);border-radius:11px;padding:8px 12px;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rings{display:flex;gap:18px;align-items:center}
+.ring{--v:62;--c:var(--blue);width:82px;height:82px;border-radius:50%;background:radial-gradient(closest-side,#fff 76%,transparent 77%),conic-gradient(var(--c) calc(var(--v)*1%),#eceae3 0);display:grid;place-items:center;font-weight:700;font-size:16px}
+.spark{flex:1;min-width:0;height:60px}
+
+.steps{list-style:none;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;counter-reset:s}
+.steps li{counter-increment:s;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:26px;color:var(--soft);font-size:16px}
+.steps li::before{content:counter(s);display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#000;color:#fff;font-weight:700;font-size:15px;margin-bottom:14px}
+.steps b{color:var(--ink)}
+.note{margin-top:18px;color:var(--soft);font-size:15.5px}
+code{font:13.5px/1.5 ui-monospace,Menlo,monospace;background:#e9e7df;padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.two>div{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:28px}
+.two h3{font-size:23px;font-weight:700;margin-bottom:12px}
+.two ul{padding-left:19px;color:var(--soft);font-size:16px}
+.two li{margin-bottom:7px}
+footer{padding:40px 0 56px;color:var(--soft);font-size:14px;border-top:1px solid var(--line);margin-top:32px}
+footer p+p{margin-top:6px}
+
+@media (max-width:860px){.card,.card.wide{grid-column:span 6}.steps,.two{grid-template-columns:1fr}}
+@media (max-width:640px){
+ .stage{position:static;transform:none;padding-top:12px}
+ .island,.island.big{border-radius:24px}
+ .island{width:170px;height:40px}.island.big{width:min(340px,100%);height:70px}
+ .state{padding:0 16px}
+ .hero{padding:46px 0 60px}
+ .btn{width:100%;justify-content:center}
+ section{padding:40px 0}
+ .card{padding:22px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav><a href="#top">OwnMac</a><a class="gh" href="https://github.com/Maanaaa/ownMac">GitHub</a></nav>
+</div>
+
+<div class="stage" aria-hidden="true">
+  <div class="island" id="island">
+    <div class="state"><div class="dot" style="background:var(--blue)"><svg viewBox="0 0 24 24"><path d="M8 3h9a2 2 0 0 1 2 2v12h-2V5H8zM5 7h9a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg></div><div><b>Copié</b><span>github.com/Maanaaa/ownMac</span></div></div>
+    <div class="state"><div class="dot" style="background:var(--orange)"><svg viewBox="0 0 24 24"><path d="M13 2s1 4-2 7c-1-1-1.5-2-1.5-3C6.5 8 5 11 5 14a7 7 0 0 0 14 0c0-5-4-8-6-12z"/></svg></div><div><b>Mac très chaud, il ralentit</b><span>Une app : 240 % du CPU</span></div></div>
+    <div class="state"><div class="dot" style="background:var(--pink)"><svg viewBox="0 0 24 24"><path d="M19 3v13a3.5 3.5 0 1 1-2-3.2V7l-8 2v9a3.5 3.5 0 1 1-2-3.2V6z"/></svg></div><div><b>Morceau suivant</b><span>Musique ou Spotify</span></div></div>
+    <div class="state"><div class="dot" style="background:var(--green)"><svg viewBox="0 0 24 24"><path d="M12 5C7 5 3 9 1 12c2 3 6 7 11 7s9-4 11-7c-2-3-6-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg></div><div><b>Vérification de présence</b><span>Caméra allumée quelques secondes</span></div></div>
+  </div>
+</div>
+
+<main class="wrap" id="top">
+  <header class="hero">
+    <h1>Ton Mac sait enfin te parler.</h1>
+    <p>OwnMac transforme l'encoche en île animée, te dit quelle app surcharge ta machine et rassemble tes réglages dans la barre de menus.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Maanaaa/ownMac/releases/latest/download/OwnMac.zip"><svg viewBox="0 0 24 24"><path d="M11 3h2v10l3.5-3.5L18 11l-6 6-6-6 1.5-1.5L11 13zM4 19h16v2H4z"/></svg>Télécharger pour Mac</a>
+      <a class="btn ghost" href="https://github.com/Maanaaa/ownMac">Voir le code</a>
+    </div>
+    <p class="req">Gratuit · Apple Silicon · macOS 26 ou plus récent · moins de 1 Mo</p>
+  </header>
+
+  <section id="fonctions" aria-labelledby="f">
+    <h2 id="f">Tout tient dans la barre de menus.</h2>
+    <p class="lead">Une seule app, sans fenêtre à gérer ni icône dans le Dock.</p>
+    <div class="bento">
+      <article class="card wide dark">
+        <h3>Il te dit ce qui ne va pas</h3>
+        <p>Surchauffe, processeur au maximum ou mémoire saturée : l'encoche nomme le responsable et explique les processus obscurs comme <em>kernel_task</em>.</p>
+        <div class="demo"><div class="alert"><div class="ic"><svg viewBox="0 0 24 24"><path d="M13 2s1 4-2 7c-1-1-1.5-2-1.5-3C6.5 8 5 11 5 14a7 7 0 0 0 14 0c0-5-4-8-6-12z"/></svg></div><div><b>Processeur au maximum</b><span>Une app : 240 % du CPU</span></div><i>Quitter</i></div></div>
+      </article>
+      <article class="card wide">
+        <h3>Une île sur ton encoche</h3>
+        <p>Musique, minuteur, copies et alertes s'y affichent, puis disparaissent. Sur un écran externe, elle devient une pastille en haut au centre.</p>
+        <div class="demo chips"><span>Musique et Spotify</span><span>Minuteur</span><span>Copies</span><span>Alertes</span></div>
+      </article>
+      <article class="card">
+        <h3>Presse-papier</h3>
+        <p>Tes 20 derniers textes copiés, protégeables par Touch ID.</p>
+        <div class="demo clip"><div>Compte rendu de la réunion</div><div>https://github.com/Maanaaa/ownMac</div><div>Adresse de livraison</div></div>
+      </article>
+      <article class="card">
+        <h3>Stats en direct</h3>
+        <p>Processeur, mémoire, réseau, stockage et batterie.</p>
+        <div class="demo rings"><div class="ring">62%</div>
+          <svg class="spark" viewBox="0 0 120 60" preserveAspectRatio="none" role="img" aria-label="Courbe d'exemple"><path d="M0 44 12 38 24 42 36 24 48 30 60 14 72 26 84 18 96 34 108 22 120 28" fill="none" stroke="#0a84ff" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>
+        </div>
+      </article>
+      <article class="card">
+        <h3>Sécurité</h3>
+        <p>Si tu es inactif et que la webcam ne voit personne, l'écran se verrouille.</p>
+        <div class="demo chips"><span>Webcam ~4 s</span><span>Traitement local</span></div>
+      </article>
+      <article class="card" style="grid-column:1/-1">
+        <h3>Les réglages que macOS cache</h3>
+        <p>Dock, Finder, icônes du bureau, fichiers cachés, format des captures d'écran. Un clic pour changer, un clic pour tout réinitialiser.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="installer" aria-labelledby="i">
+    <h2 id="i">Installer en 3 étapes</h2>
+    <p class="lead">OwnMac n'est pas notariée par Apple. macOS bloquera donc le premier lancement : c'est attendu.</p>
+    <ol class="steps">
+      <li><b>Télécharge et décompresse</b> le zip, puis glisse OwnMac dans ton dossier Applications.</li>
+      <li><b>Ouvre l'app une première fois.</b> macOS refuse et affiche un avertissement : ferme-le.</li>
+      <li><b>Autorise-la</b> dans Réglages Système &gt; Confidentialité et sécurité, avec le bouton <b>Ouvrir quand même</b>.</li>
+    </ol>
+    <p class="note">Avec le Terminal, tu peux aussi lever le blocage : <code>xattr -dr com.apple.quarantine /Applications/OwnMac.app</code>. Au premier lancement, OwnMac s'ajoute à tes éléments de connexion ; une bascule dans Réglages permet de l'enlever.</p>
+  </section>
+
+  <section aria-labelledby="c">
+    <h2 id="c">Clair sur ce qu'elle fait</h2>
+    <div class="two" style="margin-top:24px">
+      <div>
+        <h3>Confidentialité</h3>
+        <ul>
+          <li>Aucun compte, aucune télémétrie, aucune donnée envoyée : l'app n'a pas de code réseau.</li>
+          <li>Le presse-papier reste en mémoire et disparaît quand tu quittes l'app.</li>
+          <li>Les images de la webcam sont analysées puis jetées.</li>
+          <li>Le code est public, tu peux tout vérifier.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Limites</h3>
+        <ul>
+          <li>La musique ne marche qu'avec Musique et Spotify, pas dans un navigateur.</li>
+          <li>La webcam détecte un visage, pas le tien : elle ne déverrouille rien.</li>
+          <li>La chaleur s'affiche en niveaux, pas en degrés.</li>
+          <li>Le verrouillage repose sur une API privée qu'une mise à jour de macOS pourrait casser.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p><a href="https://github.com/Maanaaa/ownMac">Code source sur GitHub</a> · <a href="https://github.com/Maanaaa/ownMac/releases">Versions</a> · <a href="https://github.com/Maanaaa/ownMac/issues">Signaler un problème</a></p>
+    <p>OwnMac est un projet indépendant, sans lien avec Apple. Mac, macOS et Touch ID sont des marques d'Apple Inc.</p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  var island = document.getElementById('island');
+  var states = island.querySelectorAll('.state');
+  var i = 0;
+  function show() {
+    island.classList.add('big');
+    states[i].classList.add('on');
+    setTimeout(function () {
+      states[i].classList.remove('on');
+      island.classList.remove('big');
+      i = (i + 1) % states.length;
+    }, 3000);
+  }
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { island.classList.add('big'); states[0].classList.add('on'); return; }
+  setTimeout(show, 700);
+  setInterval(show, 4400);
+})();
+</script>
+</body>
+</html>
