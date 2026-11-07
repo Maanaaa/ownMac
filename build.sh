@@ -16,6 +16,7 @@ cat > "$APP/Contents/Info.plist" <<PL
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>LSUIElement</key><true/>
+<key>NSAppleEventsUsageDescription</key><string>OwnMac pilote Musique et Spotify depuis la Dynamic Island.</string>
 <key>NSCameraUsageDescription</key><string>OwnMac détecte ta présence pour verrouiller l'écran quand tu t'éloignes. Rien n'est enregistré.</string>
 </dict></plist>
 PL

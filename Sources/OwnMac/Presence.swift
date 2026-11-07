@@ -93,6 +93,7 @@ final class PresenceMonitor: NSObject, ObservableObject, AVCaptureVideoDataOutpu
         checking = true
         checkStart = Date()
         lastAnalysis = .distantPast
+        announce(true)
         sessionQueue.async { self.session.startRunning() }
     }
 
@@ -101,13 +102,19 @@ final class PresenceMonitor: NSObject, ObservableObject, AVCaptureVideoDataOutpu
         checking = false
         lastCheckEnd = Date()
         sessionQueue.async { self.session.stopRunning() }
+        announce(false)
         if !faceFound && idleSeconds >= Double(delay) {   // toujours inactif : on verrouille
             DispatchQueue.main.async { Self.lockScreen() }
         }
     }
 
     private func abortCheck() {
-        queue.async { if self.checking { self.checking = false; self.lastCheckEnd = Date(); self.sessionQueue.async { self.session.stopRunning() } } }
+        queue.async { if self.checking { self.checking = false; self.lastCheckEnd = Date(); self.sessionQueue.async { self.session.stopRunning() }; self.announce(false) } }
+    }
+
+    /// Prévient la Dynamic Island que la caméra s'allume ou s'éteint.
+    private func announce(_ active: Bool) {
+        DispatchQueue.main.async { NotificationCenter.default.post(name: .ownmacPresenceCheck, object: active) }
     }
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {

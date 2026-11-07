@@ -1,7 +1,14 @@
 import SwiftUI
 
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        IslandController.shared.setEnabled(UserDefaults.standard.object(forKey: "island.enabled") as? Bool ?? true)
+    }
+}
+
 @main
 struct OwnMacApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var store = Store()
     @StateObject private var clip = ClipboardStore()
     @StateObject private var presence = PresenceMonitor()
@@ -99,6 +106,8 @@ struct SettingsList: View {
                 Section("Général", icon: "gearshape.fill", color: .gray) {
                     Toggle("Lancer au démarrage", isOn: Binding(
                         get: { store.launchAtLogin }, set: { store.setLaunchAtLogin($0) }))
+                    Divider().opacity(0.5)
+                    Toggle("Dynamic Island", isOn: $store.islandEnabled)
                 }
                 Section("Sécurité", icon: "lock.shield.fill", color: .green) {
                     SecurityRows()

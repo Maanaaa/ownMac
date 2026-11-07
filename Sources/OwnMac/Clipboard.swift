@@ -27,6 +27,7 @@ final class ClipboardStore: ObservableObject {
         items.removeAll { $0 == s }
         items.insert(s, at: 0)
         if items.count > limit { items.removeLast(items.count - limit) }
+        NotificationCenter.default.post(name: .ownmacCopied, object: s)
     }
 
     func copy(_ s: String) {

@@ -7,6 +7,12 @@ final class Store: ObservableObject {
     private var pending: [String: Task<Void, Never>] = [:]
 
     @Published var launchAtLogin = false
+    @Published var islandEnabled = UserDefaults.standard.object(forKey: "island.enabled") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(islandEnabled, forKey: "island.enabled")
+            IslandController.shared.setEnabled(islandEnabled)
+        }
+    }
 
     init() {
         LoginItem.enableOnFirstRun()
