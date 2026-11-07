@@ -4,10 +4,12 @@ import SwiftUI
 struct OwnMacApp: App {
     @StateObject private var store = Store()
     @StateObject private var clip = ClipboardStore()
+    @StateObject private var presence = PresenceMonitor()
+    @StateObject private var gate = BiometricGate()
 
     var body: some Scene {
         MenuBarExtra("OwnMac", systemImage: "slider.horizontal.3") {
-            ContentView().environmentObject(store).environmentObject(clip)
+            ContentView().environmentObject(store).environmentObject(clip).environmentObject(presence).environmentObject(gate)
         }
         .menuBarExtraStyle(.window)
     }
@@ -17,13 +19,14 @@ struct OwnMacApp: App {
 
 struct ContentView: View {
     @EnvironmentObject var store: Store
+    @EnvironmentObject var gate: BiometricGate
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
             TabPicker()
             Group {
-                if store.tab == 1 { ClipboardView() } else { SettingsList() }
+                if store.tab == 1 { if gate.isUnlocked { ClipboardView() } else { LockedView() } } else { SettingsList() }
             }
             footer
         }
@@ -96,6 +99,9 @@ struct SettingsList: View {
                     Toggle("Lancer au démarrage", isOn: Binding(
                         get: { store.launchAtLogin }, set: { store.setLaunchAtLogin($0) }))
                 }
+                Section("Sécurité", icon: "lock.shield.fill", color: .green) {
+                    SecurityRows()
+                }
                 ForEach(Catalog.groups) { g in
                     Section(g.title, icon: g.icon, color: color(for: g.id)) {
                         ForEach(Array(g.tweaks.enumerated()), id: \.element.id) { i, t in
@@ -139,6 +145,31 @@ struct Section<Content: View>: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
+    }
+}
+
+struct SecurityRows: View {
+    @EnvironmentObject var presence: PresenceMonitor
+    @EnvironmentObject var gate: BiometricGate
+
+    var body: some View {
+        Toggle("Verrouiller si je m'éloigne", isOn: $presence.enabled)
+        if presence.enabled {
+            HStack {
+                Text("Après")
+                Spacer()
+                Picker("", selection: $presence.delay) {
+                    ForEach([15, 30, 60, 120], id: \.self) { Text("\($0) s").tag($0) }
+                }.labelsHidden().fixedSize()
+            }
+            Text("La caméra reste allumée (voyant vert). Analyse locale, rien n'est enregistré.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        if !presence.status.isEmpty && presence.status != "Actif" {
+            Text(presence.status).font(.caption).foregroundStyle(.red)
+        }
+        Divider().opacity(0.5)
+        Toggle("Presse-papier protégé (Touch ID)", isOn: $gate.protectClipboard)
     }
 }
 
