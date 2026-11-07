@@ -21,8 +21,12 @@ Nécessite macOS 26 ou plus récent et un Mac Apple Silicon. L'app n'est pas not
 
 ```
 ./build.sh             # compile, installe dans ~/Applications et crée OwnMac.zip dans ~/Library/Caches/OwnMac-build
-./build.sh --release   # crée seulement le zip à publier, sans toucher à l'app installée
+./build.sh --release   # crée le zip et sa signature à publier, sans toucher à l'app installée
 ```
+
+## Publier une version
+
+Augmente la version dans `build.sh`, lance `./build.sh --release`, puis publie `OwnMac.zip` et `OwnMac.zip.sig` dans une Release GitHub. La signature utilise la clé privée `~/.ownmac/release.key`, qui ne doit jamais entrer dans le repo. Les apps installées refusent toute mise à jour non signée par cette clé.
 
 ## Licence
 

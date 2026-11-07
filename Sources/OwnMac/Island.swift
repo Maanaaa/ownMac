@@ -56,7 +56,7 @@ final class IslandModel: ObservableObject {
             let version = n.object as? String ?? ""
             Task { @MainActor in
                 self?.show(IslandToast(icon: "arrow.down.circle.fill", title: "OwnMac \(version) disponible",
-                                       subtitle: "À télécharger depuis Réglages", tint: .blue), for: 6)
+                                       subtitle: "Survole l'encoche pour l'installer", tint: .blue), for: 6)
             }
         }
         nc.addObserver(forName: .ownmacReady, object: nil, queue: .main) { [weak self] _ in
@@ -193,7 +193,8 @@ final class IslandScreen: ObservableObject {
         switch mode(m) {
         case .expanded:
             if m.dropActive { return CGSize(width: 400, height: notch.height + 104) }
-            return CGSize(width: 400, height: notch.height + 118 + (m.alert == nil ? 0 : 72) + (m.shelf.isEmpty ? 0 : 92))
+            let update: CGFloat = UpdateChecker.shared.available == nil ? 0 : 60
+            return CGSize(width: 400, height: notch.height + 118 + update + (m.alert == nil ? 0 : 72) + (m.shelf.isEmpty ? 0 : 92))
         case .toast:   return CGSize(width: 340, height: notch.height + 50)
         case .compact: return CGSize(width: notch.width + (m.alert == nil ? 150 : 230), height: notch.height)
         case .idle:    return notch
@@ -216,7 +217,7 @@ private final class FirstMouseHost<Content: View>: NSHostingView<Content> {
 @MainActor
 final class IslandController {
     static let shared = IslandController()
-    private static let windowSize = CGSize(width: 480, height: 340)
+    private static let windowSize = CGSize(width: 480, height: 400)
 
     private struct Entry { let panel: NSPanel; let state: IslandScreen; let top: CGFloat; let centerX: CGFloat }
 
@@ -386,6 +387,7 @@ struct NotchShape: Shape {
 struct IslandView: View {
     @ObservedObject var model: IslandModel
     @ObservedObject var screen: IslandScreen
+    @ObservedObject private var updates = UpdateChecker.shared
 
     private var mode: IslandMode { screen.mode(model) }
 
@@ -511,6 +513,10 @@ struct IslandView: View {
             if model.dropActive {
                 dropZone
             } else {
+            if let r = updates.available {
+                updateRow(r)
+                Divider().overlay(.white.opacity(0.15))
+            }
             if let a = model.alert {
                 alertRow(a)
                 Divider().overlay(.white.opacity(0.15))
@@ -527,6 +533,29 @@ struct IslandView: View {
         .padding(.horizontal, 20)
         .padding(.top, screen.notch.height + 10)
         .padding(.bottom, model.dropActive ? 14 : 0)
+    }
+
+    private func updateRow(_ r: UpdateChecker.Release) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "arrow.down.circle.fill").font(.system(size: 24)).foregroundStyle(.blue)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("OwnMac \(r.version) disponible").font(.system(.callout, design: .rounded, weight: .semibold)).lineLimit(1)
+                switch updates.phase {
+                case .working(let text): Text(text).font(.caption).foregroundStyle(.white.opacity(0.6))
+                case .failed(let text): Text(text).font(.caption).foregroundStyle(.orange).lineLimit(1)
+                case .idle: EmptyView()
+                }
+            }
+            Spacer(minLength: 0)
+            if case .working = updates.phase {
+                ProgressView().controlSize(.small)
+            } else {
+                Button("Mettre à jour") { Task { await updates.install() } }
+                    .buttonStyle(.plain).font(.caption.weight(.semibold))
+                    .padding(.horizontal, 12).padding(.vertical, 6)
+                    .background(Color.blue, in: .capsule)
+            }
+        }
     }
 
     private func alertColor(_ a: HealthAlert) -> Color { a.critical ? .red : .orange }

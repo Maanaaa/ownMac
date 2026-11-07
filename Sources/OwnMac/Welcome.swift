@@ -327,7 +327,7 @@ private struct UpdateChoice: View {
 
     var body: some View {
         Toggle(isOn: $updates.enabled) {
-            render("Vérifier les mises à jour", "Interroge GitHub de temps en temps. Rien n'est envoyé, et l'app ne fait aucune autre connexion.")
+            render("Vérifier les mises à jour", "Interroge GitHub de temps en temps, et installe une nouvelle version quand tu le demandes. Rien n'est envoyé.")
         }
     }
 }

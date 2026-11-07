@@ -20,8 +20,8 @@ cat > "$APP/Contents/Info.plist" <<PL
 <key>CFBundleIdentifier</key><string>local.ownmac</string>
 <key>CFBundleExecutable</key><string>OwnMac</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleVersion</key><string>3</string>
-<key>CFBundleShortVersionString</key><string>0.3.0</string>
+<key>CFBundleVersion</key><string>4</string>
+<key>CFBundleShortVersionString</key><string>0.4.0</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>LSUIElement</key><true/>
 <key>NSAppleEventsUsageDescription</key><string>OwnMac pilote Musique et Spotify depuis la Dynamic Island.</string>
@@ -32,7 +32,9 @@ codesign --force --sign - "$APP"
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$OUT/OwnMac.zip"   # archive à publier dans les Releases
 if [[ "$1" == "--release" ]]; then
   rm -rf "$APP"      # évite que macOS repère une seconde copie de l'app
-  echo "OK -> $OUT/OwnMac.zip (rien d'installé)"
+  # Sans cette signature, les apps installées refusent la mise à jour automatique
+  swift scripts/sign-release.swift sign ~/.ownmac/release.key "$OUT/OwnMac.zip"
+  echo "OK -> $OUT/OwnMac.zip et OwnMac.zip.sig (rien d'installé)"
   exit 0
 fi
 # Installe dans ~/Applications (emplacement stable pour le lancement au démarrage)

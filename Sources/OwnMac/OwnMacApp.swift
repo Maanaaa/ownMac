@@ -3,6 +3,8 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         IslandController.shared.setEnabled(UserDefaults.standard.object(forKey: "island.enabled") as? Bool ?? true)
+        if UserDefaults.standard.bool(forKey: "update.restoreLoginItem") { LoginItem.set(true) }
+        UserDefaults.standard.removeObject(forKey: "update.restoreLoginItem")
         UpdateChecker.shared.start()
         WelcomeController.shared.showIfNeeded()
     }
@@ -172,9 +174,21 @@ struct UpdateRows: View {
         Toggle("Vérifier les mises à jour", isOn: $updates.enabled)
         if let r = updates.available {
             HStack {
-                Text("Version \(r.version) disponible").font(.callout)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Version \(r.version) disponible").font(.callout)
+                    switch updates.phase {
+                    case .working(let text): Text(text).font(.caption).foregroundStyle(.secondary)
+                    case .failed(let text): Text(text).font(.caption).foregroundStyle(.orange)
+                    case .idle: EmptyView()
+                    }
+                }
                 Spacer()
-                Button("Télécharger") { updates.openDownload() }.buttonStyle(.glassProminent).controlSize(.small)
+                if case .working = updates.phase {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Mettre à jour") { Task { await updates.install() } }
+                        .buttonStyle(.glassProminent).controlSize(.small)
+                }
             }
         } else {
             HStack {
