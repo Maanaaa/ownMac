@@ -6,10 +6,11 @@ struct OwnMacApp: App {
     @StateObject private var clip = ClipboardStore()
     @StateObject private var presence = PresenceMonitor()
     @StateObject private var gate = BiometricGate()
+    @StateObject private var stats = SystemStats()
 
     var body: some Scene {
         MenuBarExtra("OwnMac", systemImage: "slider.horizontal.3") {
-            ContentView().environmentObject(store).environmentObject(clip).environmentObject(presence).environmentObject(gate)
+            ContentView().environmentObject(store).environmentObject(clip).environmentObject(presence).environmentObject(gate).environmentObject(stats)
         }
         .menuBarExtraStyle(.window)
     }
@@ -26,7 +27,7 @@ struct ContentView: View {
             header
             TabPicker()
             Group {
-                if store.tab == 1 { if gate.isUnlocked { ClipboardView() } else { LockedView() } } else { SettingsList() }
+                if store.tab == 2 { StatsView() } else if store.tab == 1 { if gate.isUnlocked { ClipboardView() } else { LockedView() } } else { SettingsList() }
             }
             footer
         }
@@ -64,7 +65,7 @@ struct ContentView: View {
 
 struct TabPicker: View {
     @EnvironmentObject var store: Store
-    private let tabs = [("Réglages", "switch.2"), ("Presse-papier", "doc.on.clipboard")]
+    private let tabs = ["Réglages", "Presse-papier", "Stats"]
 
     var body: some View {
         GlassEffectContainer(spacing: 6) {
@@ -73,8 +74,8 @@ struct TabPicker: View {
                     Button {
                         withAnimation(.smooth(duration: 0.25)) { store.tab = i }
                     } label: {
-                        Label(tabs[i].0, systemImage: tabs[i].1)
-                            .font(.callout.weight(.medium))
+                        Text(tabs[i])
+                            .font(.footnote.weight(.medium))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 7)
                     }
