@@ -2,6 +2,27 @@ import SwiftUI
 import IOKit.ps
 import Darwin
 
+/// Charge CPU globale (0...1) entre deux appels ; nil au premier appel.
+struct CPUSampler {
+    private var last: (user: UInt32, sys: UInt32, idle: UInt32, nice: UInt32)?
+
+    mutating func sample() -> Double? {
+        var info = host_cpu_load_info()
+        var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info>.size / MemoryLayout<integer_t>.size)
+        let r = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count) }
+        }
+        guard r == KERN_SUCCESS else { return nil }
+        let t = info.cpu_ticks
+        let now = (user: t.0, sys: t.1, idle: t.2, nice: t.3)
+        defer { last = now }
+        guard let l = last else { return nil }
+        let busy = Double(now.user &- l.user) + Double(now.sys &- l.sys) + Double(now.nice &- l.nice)
+        let total = busy + Double(now.idle &- l.idle)
+        return total > 0 ? busy / total : nil
+    }
+}
+
 /// Statistiques système en direct (CPU, mémoire, disque, batterie, réseau). Lecture seule, tout en local.
 final class SystemStats: ObservableObject {
     static let historyLength = 60
@@ -21,7 +42,7 @@ final class SystemStats: ObservableObject {
     @Published var upHistory = [Double](repeating: 0, count: historyLength)
 
     private var timer: Timer?
-    private var lastTicks: (user: UInt32, sys: UInt32, idle: UInt32, nice: UInt32)?
+    private var cpuSampler = CPUSampler()
     private var lastNet: (rx: UInt32, tx: UInt32, at: Date)?
 
     var uptime: TimeInterval { ProcessInfo.processInfo.systemUptime }
@@ -31,7 +52,7 @@ final class SystemStats: ObservableObject {
         sample()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in self?.sample() }
     }
-    func stop() { timer?.invalidate(); timer = nil; lastTicks = nil; lastNet = nil }
+    func stop() { timer?.invalidate(); timer = nil; cpuSampler = CPUSampler(); lastNet = nil }
 
     private func push(_ arr: inout [Double], _ v: Double) { arr.append(v); arr.removeFirst(arr.count - Self.historyLength) }
 
@@ -41,21 +62,9 @@ final class SystemStats: ObservableObject {
     }
 
     private func sampleCPU() {
-        var info = host_cpu_load_info()
-        var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info>.size / MemoryLayout<integer_t>.size)
-        let r = withUnsafeMutablePointer(to: &info) {
-            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count) }
-        }
-        guard r == KERN_SUCCESS else { return }
-        let t = info.cpu_ticks
-        let now = (user: t.0, sys: t.1, idle: t.2, nice: t.3)
-        if let l = lastTicks {
-            let u = Double(now.user &- l.user), s = Double(now.sys &- l.sys)
-            let i = Double(now.idle &- l.idle), n = Double(now.nice &- l.nice)
-            let total = u + s + i + n
-            if total > 0 { cpu = (u + s + n) / total; push(&cpuHistory, cpu) }
-        }
-        lastTicks = now
+        guard let load = cpuSampler.sample() else { return }
+        cpu = load
+        push(&cpuHistory, load)
     }
 
     private func sampleMemory() {

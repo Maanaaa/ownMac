@@ -25,6 +25,8 @@ final class IslandModel: ObservableObject {
     @Published var track: Track?
     @Published var timerEnd: Date?
     @Published var now = Date()
+    @Published var alert: HealthAlert?
+    var onDismissAlert: ((HealthAlert.Kind) -> Void)?
 
     private var toastTask: Task<Void, Never>?
     private var ticker: Timer?
@@ -143,15 +145,15 @@ final class IslandScreen: ObservableObject {
     func mode(_ m: IslandModel) -> IslandMode {
         if expanded { return .expanded }
         if m.toast != nil { return .toast }
-        if m.timerEnd != nil || m.track?.playing == true { return .compact }
+        if m.alert != nil || m.timerEnd != nil || m.track?.playing == true { return .compact }
         return .idle
     }
 
     func size(_ m: IslandModel) -> CGSize {
         switch mode(m) {
-        case .expanded: CGSize(width: 400, height: notch.height + 118)
+        case .expanded: CGSize(width: 400, height: notch.height + 118 + (m.alert == nil ? 0 : 72))
         case .toast:    CGSize(width: 340, height: notch.height + 50)
-        case .compact:  CGSize(width: notch.width + 150, height: notch.height)
+        case .compact:  CGSize(width: notch.width + (m.alert == nil ? 150 : 230), height: notch.height)
         case .idle:     notch
         }
     }
@@ -177,6 +179,7 @@ final class IslandController {
     private struct Entry { let panel: NSPanel; let state: IslandScreen; let top: CGFloat; let centerX: CGFloat }
 
     private let model = IslandModel()
+    private lazy var health = HealthMonitor(model: model)
     private var entries: [Entry] = []
     private var monitor: Any?
     private var screenObserver: NSObjectProtocol?
@@ -186,6 +189,7 @@ final class IslandController {
         teardown()
         guard on else { return }
         rebuild()
+        health.start()
         monitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { _ in
             Task { @MainActor in IslandController.shared.mouseMoved() }
         }
@@ -196,6 +200,7 @@ final class IslandController {
     }
 
     private func teardown() {
+        health.stop()
         if let monitor { NSEvent.removeMonitor(monitor) }
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         monitor = nil; screenObserver = nil
@@ -325,12 +330,18 @@ struct IslandView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .ignoresSafeArea()
         .animation(.spring(response: 0.36, dampingFraction: 0.8), value: mode)
+        .animation(.spring(response: 0.36, dampingFraction: 0.8), value: model.alert?.kind)
     }
 
     // Icône à gauche de l'encoche, info à droite
     private var compact: some View {
         HStack {
-            if model.timerEnd != nil {
+            if let a = model.alert {
+                Image(systemName: a.icon).foregroundStyle(alertColor(a))
+                Spacer()
+                Text(a.shortLabel).font(.system(.caption, design: .rounded, weight: .semibold))
+                    .lineLimit(1).frame(maxWidth: 92, alignment: .trailing).foregroundStyle(alertColor(a))
+            } else if model.timerEnd != nil {
                 Image(systemName: "timer").foregroundStyle(.orange)
                 Spacer()
                 Text(model.remainingText).font(.system(.callout, design: .rounded, weight: .semibold))
@@ -365,12 +376,40 @@ struct IslandView: View {
 
     private var expanded: some View {
         VStack(spacing: 10) {
+            if let a = model.alert {
+                alertRow(a)
+                Divider().overlay(.white.opacity(0.15))
+            }
             musicRow
             Divider().overlay(.white.opacity(0.15))
             timerRow
         }
         .padding(.horizontal, 20)
         .padding(.top, screen.notch.height + 10)
+    }
+
+    private func alertColor(_ a: HealthAlert) -> Color { a.critical ? .red : .orange }
+
+    private func alertRow(_ a: HealthAlert) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: a.icon)
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: 36, height: 36)
+                .background(alertColor(a).gradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(a.title).font(.system(.callout, design: .rounded, weight: .semibold)).lineLimit(1)
+                Text(a.detail).font(.caption).foregroundStyle(.white.opacity(0.6)).lineLimit(2)
+            }
+            Spacer(minLength: 0)
+            VStack(alignment: .trailing, spacing: 4) {
+                if let c = a.culprit, c.canQuit {
+                    Button("Quitter") { c.quit() }.buttonStyle(.plain).foregroundStyle(.orange)
+                        .font(.caption.weight(.semibold))
+                }
+                Button("Ignorer") { model.onDismissAlert?(a.kind) }.buttonStyle(.plain)
+                    .foregroundStyle(.white.opacity(0.6)).font(.caption)
+            }
+        }
     }
 
     private var musicRow: some View {
