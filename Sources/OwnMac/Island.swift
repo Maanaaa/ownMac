@@ -59,6 +59,13 @@ final class IslandModel: ObservableObject {
                                        subtitle: "Survole l'encoche pour l'installer", tint: .blue), for: 6)
             }
         }
+        nc.addObserver(forName: .ownmacUpdated, object: nil, queue: .main) { [weak self] n in
+            let version = n.object as? String ?? ""
+            Task { @MainActor in
+                self?.show(IslandToast(icon: "checkmark.circle.fill", title: "OwnMac \(version) installée",
+                                       subtitle: "Mise à jour terminée", tint: .green), for: 5)
+            }
+        }
         nc.addObserver(forName: .ownmacReady, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in
                 self?.show(IslandToast(icon: "sparkles", title: "OwnMac est prêt", subtitle: "Survole l'encoche pour commencer", tint: .blue), for: 5)

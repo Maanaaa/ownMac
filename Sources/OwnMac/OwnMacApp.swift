@@ -3,8 +3,13 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         IslandController.shared.setEnabled(UserDefaults.standard.object(forKey: "island.enabled") as? Bool ?? true)
-        if UserDefaults.standard.bool(forKey: "update.restoreLoginItem") { LoginItem.set(true) }
-        UserDefaults.standard.removeObject(forKey: "update.restoreLoginItem")
+        // Cette clé n'existe qu'au premier lancement qui suit une mise à jour automatique
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: "update.restoreLoginItem") != nil {
+            if defaults.bool(forKey: "update.restoreLoginItem") { LoginItem.set(true) }
+            defaults.removeObject(forKey: "update.restoreLoginItem")
+            NotificationCenter.default.post(name: .ownmacUpdated, object: UpdateChecker.shared.currentVersion)
+        }
         UpdateChecker.shared.start()
         WelcomeController.shared.showIfNeeded()
     }

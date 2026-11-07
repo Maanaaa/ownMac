@@ -3,6 +3,7 @@ import Foundation
 
 extension Notification.Name {
     static let ownmacUpdate = Notification.Name("ownmac.update")      // object: String (version)
+    static let ownmacUpdated = Notification.Name("ownmac.updated")    // object: String (version installée)
 }
 
 /// Vérification optionnelle : seule connexion réseau de l'app. Lit la dernière version publique
