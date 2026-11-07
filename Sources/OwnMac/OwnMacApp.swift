@@ -3,6 +3,8 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         IslandController.shared.setEnabled(UserDefaults.standard.object(forKey: "island.enabled") as? Bool ?? true)
+        UpdateChecker.shared.start()
+        WelcomeController.shared.showIfNeeded()
     }
 }
 
@@ -108,6 +110,11 @@ struct SettingsList: View {
                         get: { store.launchAtLogin }, set: { store.setLaunchAtLogin($0) }))
                     Divider().opacity(0.5)
                     Toggle("Dynamic Island", isOn: $store.islandEnabled)
+                    Divider().opacity(0.5)
+                    UpdateRows()
+                    Divider().opacity(0.5)
+                    Button("Revoir l'introduction") { WelcomeController.shared.show() }.buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
                 }
                 Section("Sécurité", icon: "lock.shield.fill", color: .green) {
                     SecurityRows()
@@ -154,6 +161,23 @@ struct Section<Content: View>: View {
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+    }
+}
+
+struct UpdateRows: View {
+    @ObservedObject private var updates = UpdateChecker.shared
+
+    var body: some View {
+        Toggle("Vérifier les mises à jour", isOn: $updates.enabled)
+        if let r = updates.available {
+            HStack {
+                Text("Version \(r.version) disponible").font(.callout)
+                Spacer()
+                Button("Télécharger") { updates.openDownload() }.buttonStyle(.glassProminent).controlSize(.small)
+            }
+        } else {
+            Text("Version \(updates.currentVersion)").font(.caption).foregroundStyle(.secondary)
         }
     }
 }

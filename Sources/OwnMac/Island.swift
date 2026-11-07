@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 extension Notification.Name {
     static let ownmacCopied = Notification.Name("ownmac.copied")                  // object: String
@@ -11,6 +12,7 @@ extension Notification.Name {
 struct IslandToast: Equatable {
     let id = UUID()
     let icon: String, title: String, subtitle: String?, tint: Color
+    var progress: Double? = nil       // affiche une jauge (batterie)
 }
 
 struct Track: Equatable {
@@ -26,6 +28,9 @@ final class IslandModel: ObservableObject {
     @Published var timerEnd: Date?
     @Published var now = Date()
     @Published var alert: HealthAlert?
+    @Published var shelf: [URL] = []
+    @Published var dropActive = false     // un fichier est glissé vers l'île
+    @Published var dropHover = false      // il survole la zone de dépôt
     var onDismissAlert: ((HealthAlert.Kind) -> Void)?
 
     private var toastTask: Task<Void, Never>?
@@ -47,6 +52,13 @@ final class IslandModel: ObservableObject {
             }
         }
         let nc = NotificationCenter.default
+        nc.addObserver(forName: .ownmacUpdate, object: nil, queue: .main) { [weak self] n in
+            let version = n.object as? String ?? ""
+            Task { @MainActor in
+                self?.show(IslandToast(icon: "arrow.down.circle.fill", title: "OwnMac \(version) disponible",
+                                       subtitle: "À télécharger depuis Réglages", tint: .blue), for: 6)
+            }
+        }
         nc.addObserver(forName: .ownmacCopied, object: nil, queue: .main) { [weak self] n in
             let text = n.object as? String ?? ""
             Task { @MainActor in self?.showCopied(text) }
@@ -84,6 +96,29 @@ final class IslandModel: ObservableObject {
         } else if toast?.id == presenceToastID {
             toast = nil
         }
+    }
+
+    // MARK: Étagère (références aux fichiers : rien n'est copié ni déplacé)
+
+    func addToShelf(_ urls: [URL]) {
+        for url in urls where url.isFileURL && FileManager.default.fileExists(atPath: url.path) && !shelf.contains(url) {
+            shelf.append(url)
+        }
+    }
+
+    func removeFromShelf(_ url: URL) { shelf.removeAll { $0 == url } }
+    func clearShelf() { shelf.removeAll() }
+    func pruneShelf() { shelf.removeAll { !FileManager.default.fileExists(atPath: $0.path) } }
+
+    func receive(_ providers: [NSItemProvider]) -> Bool {
+        let matching = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+        for p in matching {
+            p.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { [weak self] data, _ in
+                guard let data, let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+                Task { @MainActor in self?.addToShelf([url]) }
+            }
+        }
+        return !matching.isEmpty
     }
 
     // MARK: Musique (notifications publiques de Musique et Spotify)
@@ -145,16 +180,18 @@ final class IslandScreen: ObservableObject {
     func mode(_ m: IslandModel) -> IslandMode {
         if expanded { return .expanded }
         if m.toast != nil { return .toast }
-        if m.alert != nil || m.timerEnd != nil || m.track?.playing == true { return .compact }
+        if m.alert != nil || m.timerEnd != nil || m.track?.playing == true || !m.shelf.isEmpty { return .compact }
         return .idle
     }
 
     func size(_ m: IslandModel) -> CGSize {
         switch mode(m) {
-        case .expanded: CGSize(width: 400, height: notch.height + 118 + (m.alert == nil ? 0 : 72))
-        case .toast:    CGSize(width: 340, height: notch.height + 50)
-        case .compact:  CGSize(width: notch.width + (m.alert == nil ? 150 : 230), height: notch.height)
-        case .idle:     notch
+        case .expanded:
+            if m.dropActive { return CGSize(width: 400, height: notch.height + 104) }
+            return CGSize(width: 400, height: notch.height + 118 + (m.alert == nil ? 0 : 72) + (m.shelf.isEmpty ? 0 : 92))
+        case .toast:   return CGSize(width: 340, height: notch.height + 50)
+        case .compact: return CGSize(width: notch.width + (m.alert == nil ? 150 : 230), height: notch.height)
+        case .idle:    return notch
         }
     }
 }
@@ -174,12 +211,15 @@ private final class FirstMouseHost<Content: View>: NSHostingView<Content> {
 @MainActor
 final class IslandController {
     static let shared = IslandController()
-    private static let windowSize = CGSize(width: 480, height: 240)
+    private static let windowSize = CGSize(width: 480, height: 340)
 
     private struct Entry { let panel: NSPanel; let state: IslandScreen; let top: CGFloat; let centerX: CGFloat }
 
     private let model = IslandModel()
     private lazy var health = HealthMonitor(model: model)
+    private lazy var power = PowerMonitor(model: model)
+    private var dragMonitors: [Any] = []
+    private var dragChangeCount = NSPasteboard(name: .drag).changeCount
     private var entries: [Entry] = []
     private var monitor: Any?
     private var screenObserver: NSObjectProtocol?
@@ -190,6 +230,15 @@ final class IslandController {
         guard on else { return }
         rebuild()
         health.start()
+        power.start()
+        dragMonitors = [
+            NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { _ in
+                Task { @MainActor in IslandController.shared.mouseDown() }
+            },
+            NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDragged) { _ in
+                Task { @MainActor in IslandController.shared.mouseDragged() }
+            },
+        ].compactMap { $0 }
         monitor = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { _ in
             Task { @MainActor in IslandController.shared.mouseMoved() }
         }
@@ -201,6 +250,9 @@ final class IslandController {
 
     private func teardown() {
         health.stop()
+        power.stop()
+        dragMonitors.forEach(NSEvent.removeMonitor)
+        dragMonitors = []
         if let monitor { NSEvent.removeMonitor(monitor) }
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         monitor = nil; screenObserver = nil
@@ -256,7 +308,24 @@ final class IslandController {
         }
     }
 
+    private func mouseDown() { dragChangeCount = NSPasteboard(name: .drag).changeCount }
+
+    /// macOS remplit le presse-papier de glisser au début d'un glisser de fichier : c'est le signal.
+    private func mouseDragged() {
+        let board = NSPasteboard(name: .drag)
+        guard board.changeCount != dragChangeCount, board.types?.contains(.fileURL) == true else { return }
+        let p = NSEvent.mouseLocation
+        for e in entries where !e.state.expanded {
+            let zone = NSRect(x: e.centerX - 170, y: e.top - 70, width: 340, height: 70)
+            if zone.contains(p) {
+                model.dropActive = true
+                setExpanded(e, true)
+            }
+        }
+    }
+
     private func setExpanded(_ e: Entry, _ on: Bool) {
+        if on { model.pruneShelf() }
         e.state.expanded = on
         e.panel.ignoresMouseEvents = !on
         guard on, poll == nil else { return }
@@ -268,8 +337,16 @@ final class IslandController {
 
     private func checkLeave() {
         let p = NSEvent.mouseLocation
-        for e in entries where e.state.expanded && !rect(e, margin: 14).contains(p) { setExpanded(e, false) }
-        if !entries.contains(where: { $0.state.expanded }) { poll?.invalidate(); poll = nil }
+        let pressed = NSEvent.pressedMouseButtons != 0
+        // Pendant qu'on sort un fichier de l'étagère, l'île doit rester ouverte jusqu'au lâcher
+        for e in entries where e.state.expanded && !rect(e, margin: 14).contains(p) && (!pressed || model.dropActive) {
+            setExpanded(e, false)
+        }
+        if !pressed { model.dropActive = false }
+        if !entries.contains(where: { $0.state.expanded }) {
+            model.dropActive = false
+            poll?.invalidate(); poll = nil
+        }
     }
 }
 
@@ -329,7 +406,12 @@ struct IslandView: View {
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .ignoresSafeArea()
+        .onDrop(of: [UTType.fileURL], isTargeted: Binding(get: { model.dropHover }, set: { model.dropHover = $0 })) {
+            model.receive($0)
+        }
         .animation(.spring(response: 0.36, dampingFraction: 0.8), value: mode)
+        .animation(.spring(response: 0.36, dampingFraction: 0.8), value: model.dropActive)
+        .animation(.spring(response: 0.36, dampingFraction: 0.8), value: model.shelf)
         .animation(.spring(response: 0.36, dampingFraction: 0.8), value: model.alert?.kind)
     }
 
@@ -346,10 +428,15 @@ struct IslandView: View {
                 Spacer()
                 Text(model.remainingText).font(.system(.callout, design: .rounded, weight: .semibold))
                     .monospacedDigit().foregroundStyle(.orange)
-            } else {
+            } else if model.track?.playing == true {
                 Image(systemName: "music.note").foregroundStyle(.pink)
                 Spacer()
                 MusicBars()
+            } else {
+                Image(systemName: "tray.full.fill").foregroundStyle(.blue)
+                Spacer()
+                Text("\(model.shelf.count)").font(.system(.callout, design: .rounded, weight: .semibold))
+                    .monospacedDigit().foregroundStyle(.blue)
             }
         }
         .padding(.horizontal, 16)
@@ -360,6 +447,7 @@ struct IslandView: View {
         HStack(spacing: 12) {
             Image(systemName: t.icon)
                 .font(.system(size: 14, weight: .semibold))
+                .symbolEffect(.pulse, isActive: t.progress != nil)
                 .frame(width: 32, height: 32)
                 .background(t.tint.gradient, in: .circle)
             VStack(alignment: .leading, spacing: 1) {
@@ -369,23 +457,71 @@ struct IslandView: View {
                 }
             }
             Spacer(minLength: 0)
+            if let p = t.progress { batteryGauge(p, t.tint) }
         }
         .padding(.horizontal, 20)
         .padding(.top, screen.notch.height + 4)
     }
 
+    private func batteryGauge(_ level: Double, _ tint: Color) -> some View {
+        Capsule().fill(.white.opacity(0.18)).frame(width: 52, height: 18)
+            .overlay(alignment: .leading) {
+                Capsule().fill(tint.gradient).frame(width: max(14, 52 * min(1, level)))
+            }
+    }
+
+    private var dropZone: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "tray.and.arrow.down.fill").font(.system(size: 22))
+                .symbolEffect(.bounce, value: model.dropHover)
+            Text("Dépose ici").font(.system(.callout, design: .rounded, weight: .semibold))
+        }
+        .foregroundStyle(model.dropHover ? .white : .white.opacity(0.7))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(model.dropHover ? Color.blue.opacity(0.35) : .clear,
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(.white.opacity(0.35), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
+        }
+    }
+
+    private var shelfRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Étagère").font(.system(.caption, design: .rounded, weight: .semibold)).foregroundStyle(.white.opacity(0.6))
+                Spacer()
+                Button("Vider") { model.clearShelf() }.buttonStyle(.plain).font(.caption).foregroundStyle(.white.opacity(0.6))
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(model.shelf, id: \.self) { ShelfItem(url: $0, model: model) }
+                }
+            }
+        }
+    }
+
     private var expanded: some View {
         VStack(spacing: 10) {
+            if model.dropActive {
+                dropZone
+            } else {
             if let a = model.alert {
                 alertRow(a)
+                Divider().overlay(.white.opacity(0.15))
+            }
+            if !model.shelf.isEmpty {
+                shelfRow
                 Divider().overlay(.white.opacity(0.15))
             }
             musicRow
             Divider().overlay(.white.opacity(0.15))
             timerRow
+            }
         }
         .padding(.horizontal, 20)
         .padding(.top, screen.notch.height + 10)
+        .padding(.bottom, model.dropActive ? 14 : 0)
     }
 
     private func alertColor(_ a: HealthAlert) -> Color { a.critical ? .red : .orange }
@@ -456,6 +592,30 @@ struct IslandView: View {
         Button(action: action) {
             Image(systemName: name).font(.system(size: 13)).frame(width: 26, height: 26).contentShape(Rectangle())
         }.buttonStyle(.plain)
+    }
+}
+
+/// Un fichier de l'étagère : à glisser vers n'importe quelle app.
+struct ShelfItem: View {
+    let url: URL
+    @ObservedObject var model: IslandModel
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                .resizable().frame(width: 34, height: 34)
+            Text(url.lastPathComponent).font(.system(size: 10)).lineLimit(1).truncationMode(.middle)
+                .frame(width: 58)
+        }
+        .overlay(alignment: .topTrailing) {
+            Button { model.removeFromShelf(url) } label: {
+                Image(systemName: "xmark.circle.fill").font(.system(size: 13))
+            }
+            .buttonStyle(.plain).foregroundStyle(.white.opacity(0.7))
+        }
+        .contentShape(Rectangle())
+        .onDrag { NSItemProvider(object: url as NSURL) }
+        .help(url.path)
     }
 }
 

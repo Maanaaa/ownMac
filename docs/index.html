@@ -84,7 +84,79 @@ code{font:13.5px/1.5 ui-monospace,Menlo,monospace;background:#e9e7df;padding:2px
 footer{padding:40px 0 56px;color:var(--soft);font-size:14px;border-top:1px solid var(--line);margin-top:32px}
 footer p+p{margin-top:6px}
 
+
+/* Scène de l'étagère : 12 s, tout est en cqw pour suivre la taille de l'écran */
+.shelf-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:22px}
+.mac{container-type:inline-size;background:#0b0b0d;border-radius:22px;padding:10px;box-shadow:0 40px 70px -40px rgba(0,0,0,.55)}
+.screen{position:relative;aspect-ratio:16/9.4;overflow:hidden;border-radius:13px;background:radial-gradient(90% 120% at 20% 10%,#7f8cff 0,transparent 55%),radial-gradient(80% 110% at 90% 90%,#ff6d8a 0,transparent 55%),#23264d}
+.menubar{position:absolute;inset:0 0 auto;height:3.4cqw;background:rgba(255,255,255,.14);display:flex;justify-content:space-between;align-items:center;padding:0 2cqw;color:rgba(255,255,255,.85);font-size:1.4cqw;font-weight:600}
+.win{position:absolute;background:rgba(246,246,248,.96);border-radius:1.6cqw;box-shadow:0 2cqw 5cqw rgba(0,0,0,.35);overflow:hidden;color:#1d1d1f}
+.bar{display:flex;gap:.6cqw;align-items:center;padding:1.1cqw 1.3cqw;background:rgba(0,0,0,.05);font-size:1.5cqw;font-weight:600}
+.bar i{width:1cqw;height:1cqw;border-radius:50%;background:#d0d0d4}
+.bar span{margin-left:1cqw}
+.win-a{left:6cqw;top:12cqw;width:39cqw;height:31cqw;animation:winA var(--t) infinite}
+.win-b{left:52cqw;top:13cqw;width:42cqw;height:33cqw;animation:winB var(--t) infinite}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:1.8cqw;padding:2.2cqw}
+.tile{height:8.6cqw;border-radius:.9cqw;background:#e4e4e8}
+.line{height:1.3cqw;border-radius:1cqw;background:#dedee3;margin:1.5cqw 2cqw}
+.line.s{width:55%}
+.attach{position:absolute;left:2cqw;right:2cqw;bottom:2cqw;height:11.5cqw;border:.25cqw dashed #c4c4cc;border-radius:1.3cqw}
+.doc{position:absolute;left:0;top:0;z-index:4;width:8.6cqw;height:10.6cqw;border-radius:1cqw;background:linear-gradient(160deg,#fff,#e9edff);box-shadow:0 1.2cqw 2.6cqw rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center;padding-bottom:1cqw;font-size:1.6cqw;font-weight:800;color:#e0304e;animation:doc var(--t) infinite}
+.doc::before{content:"";position:absolute;left:1.5cqw;right:1.5cqw;top:1.8cqw;height:4.6cqw;background:repeating-linear-gradient(#cdd3ea 0 .55cqw,transparent .55cqw 1.3cqw)}
+.isl{position:absolute;top:0;left:50%;z-index:3;width:21cqw;height:3.6cqw;transform:translateX(-50%);background:#000;color:#fff;border-radius:0 0 1.5cqw 1.5cqw;overflow:hidden;box-shadow:0 1.5cqw 3cqw rgba(0,0,0,.35);animation:isl var(--t) infinite}
+.isl>div{position:absolute;opacity:0}
+.zone{left:2cqw;right:2cqw;top:4.4cqw;bottom:1.7cqw;border:.22cqw dashed rgba(255,255,255,.45);border-radius:1.2cqw;display:grid;place-items:center;font-size:2cqw;font-weight:700;background:rgba(10,132,255,.32);animation:zone var(--t) infinite}
+.tray{left:2cqw;top:4.1cqw;font-size:1.6cqw;font-weight:700;color:rgba(255,255,255,.62);animation:tray var(--t) infinite}
+.mini{left:1.8cqw;right:1.8cqw;top:.6cqw;display:flex;justify-content:space-between;align-items:center;font-size:1.8cqw;font-weight:800;color:#59a8ff;animation:mini var(--t) infinite}
+.cursor{position:absolute;left:0;top:0;z-index:6;width:2.9cqw;height:2.9cqw;animation:cur var(--t) infinite}
+.scene{--t:12s}
+.scene *{animation-play-state:paused}
+.scene.run *{animation-play-state:running}
+.beats{list-style:none;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.beats li{border-top:3px solid var(--line);padding-top:12px;color:var(--soft);font-size:16px;animation-duration:var(--t);animation-iteration-count:infinite}
+.beats b{display:block;color:var(--ink);font:700 19px/1.25 ui-rounded,-apple-system,sans-serif;margin-bottom:3px}
+.scene .b1{animation-name:b1}.scene .b2{animation-name:b2}.scene .b3{animation-name:b3}
+
+@keyframes doc{
+ 0%,9%{transform:translate(9cqw,18.5cqw) rotate(0) scale(1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.2,1)}
+ 31%{transform:translate(45.7cqw,5.2cqw) rotate(-5deg) scale(1.06);opacity:1}
+ 35%{transform:translate(44cqw,3.3cqw) rotate(0) scale(.5);opacity:1}
+ 40%{transform:translate(44cqw,3.3cqw) rotate(0) scale(.5);opacity:1}
+ 43%,55%{transform:translate(44cqw,-3cqw) rotate(0) scale(.3);opacity:0}
+ 58%,60%{transform:translate(44cqw,3.3cqw) rotate(0) scale(.5);opacity:1;animation-timing-function:cubic-bezier(.45,0,.2,1)}
+ 78%{transform:translate(68cqw,30.8cqw) rotate(4deg) scale(1.06);opacity:1}
+ 82%,93%{transform:translate(68cqw,30.8cqw) rotate(0) scale(.92);opacity:1}
+ 97%{transform:translate(68cqw,30.8cqw) scale(.92);opacity:0}
+ 98%{transform:translate(9cqw,18.5cqw) scale(1);opacity:0}
+ 100%{transform:translate(9cqw,18.5cqw) scale(1);opacity:1}}
+@keyframes cur{
+ 0%{transform:translate(32cqw,40cqw);animation-timing-function:ease-in-out}
+ 9%{transform:translate(14cqw,24cqw);animation-timing-function:cubic-bezier(.45,0,.2,1)}
+ 31%{transform:translate(50.5cqw,10.5cqw)}
+ 35%{transform:translate(50.5cqw,10.5cqw);animation-timing-function:ease-in-out}
+ 44%{transform:translate(70cqw,38cqw);animation-timing-function:ease-in-out}
+ 54%{transform:translate(64cqw,30cqw);animation-timing-function:ease-in-out}
+ 58%,60%{transform:translate(50cqw,8.5cqw);animation-timing-function:cubic-bezier(.45,0,.2,1)}
+ 78%,82%{transform:translate(73cqw,36cqw);animation-timing-function:ease-in-out}
+ 92%,100%{transform:translate(32cqw,40cqw)}}
+@keyframes isl{
+ 0%,17%{width:21cqw;height:3.6cqw;border-radius:0 0 1.5cqw 1.5cqw;animation-timing-function:cubic-bezier(.3,1.4,.5,1)}
+ 23%,38%{width:42cqw;height:16cqw;border-radius:0 0 3cqw 3cqw;animation-timing-function:ease-in-out}
+ 43%,54%{width:31cqw;height:3.6cqw;border-radius:0 0 1.5cqw 1.5cqw;animation-timing-function:cubic-bezier(.3,1.4,.5,1)}
+ 58%,76%{width:42cqw;height:16cqw;border-radius:0 0 3cqw 3cqw;animation-timing-function:ease-in-out}
+ 82%,96%{width:31cqw;height:3.6cqw;border-radius:0 0 1.5cqw 1.5cqw}
+ 100%{width:21cqw;height:3.6cqw;border-radius:0 0 1.5cqw 1.5cqw}}
+@keyframes zone{0%,21%{opacity:0}24%,32%{opacity:1}35%,100%{opacity:0}}
+@keyframes tray{0%,34%{opacity:0}36%,39%{opacity:1}42%,57%{opacity:0}59%,75%{opacity:1}78%,100%{opacity:0}}
+@keyframes mini{0%,42%{opacity:0}44%,54%{opacity:1}56%,81%{opacity:0}83%,95%{opacity:1}97%,100%{opacity:0}}
+@keyframes winA{0%,43%{opacity:1;transform:none}48%,96%{opacity:0;transform:scale(.96)}100%{opacity:1;transform:none}}
+@keyframes winB{0%,43%{opacity:0;transform:translateX(3cqw)}48%,93%{opacity:1;transform:none}97%,100%{opacity:0;transform:translateX(3cqw)}}
+@keyframes b1{0%,37%{border-color:var(--blue)}39%,100%{border-color:var(--line)}}
+@keyframes b2{0%,38%{border-color:var(--line)}40%,57%{border-color:var(--blue)}59%,100%{border-color:var(--line)}}
+@keyframes b3{0%,58%{border-color:var(--line)}60%,96%{border-color:var(--blue)}98%,100%{border-color:var(--line)}}
+
 @media (max-width:860px){.card,.card.wide{grid-column:span 6}.steps,.two{grid-template-columns:1fr}}
+@media (max-width:640px){.beats{grid-template-columns:1fr;gap:12px}}
 @media (max-width:640px){
  .stage{position:static;transform:none;padding-top:12px}
  .island,.island.big{border-radius:24px}
@@ -95,7 +167,10 @@ footer p+p{margin-top:6px}
  section{padding:40px 0}
  .card{padding:22px}
 }
-@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}
+ .scene *{animation:none!important}
+ .isl{width:42cqw;height:16cqw;border-radius:0 0 3cqw 3cqw}.isl .tray{opacity:1}
+ .doc{transform:translate(44cqw,3.3cqw) scale(.5)}.win-b{opacity:0}.cursor{display:none}}
 </style>
 </head>
 <body>
@@ -108,6 +183,7 @@ footer p+p{margin-top:6px}
     <div class="state"><div class="dot" style="background:var(--blue)"><svg viewBox="0 0 24 24"><path d="M8 3h9a2 2 0 0 1 2 2v12h-2V5H8zM5 7h9a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg></div><div><b>Copié</b><span>github.com/Maanaaa/ownMac</span></div></div>
     <div class="state"><div class="dot" style="background:var(--orange)"><svg viewBox="0 0 24 24"><path d="M13 2s1 4-2 7c-1-1-1.5-2-1.5-3C6.5 8 5 11 5 14a7 7 0 0 0 14 0c0-5-4-8-6-12z"/></svg></div><div><b>Mac très chaud, il ralentit</b><span>Une app : 240 % du CPU</span></div></div>
     <div class="state"><div class="dot" style="background:var(--pink)"><svg viewBox="0 0 24 24"><path d="M19 3v13a3.5 3.5 0 1 1-2-3.2V7l-8 2v9a3.5 3.5 0 1 1-2-3.2V6z"/></svg></div><div><b>Morceau suivant</b><span>Musique ou Spotify</span></div></div>
+    <div class="state"><div class="dot" style="background:var(--green)"><svg viewBox="0 0 24 24"><path d="M13 2 5 14h6l-1 8 9-13h-6z"/></svg></div><div><b>En charge : 42 %</b><span>Pleine charge dans 1 h 15 min</span></div></div>
     <div class="state"><div class="dot" style="background:var(--green)"><svg viewBox="0 0 24 24"><path d="M12 5C7 5 3 9 1 12c2 3 6 7 11 7s9-4 11-7c-2-3-6-7-11-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/></svg></div><div><b>Vérification de présence</b><span>Caméra allumée quelques secondes</span></div></div>
   </div>
 </div>
@@ -122,6 +198,32 @@ footer p+p{margin-top:6px}
     </div>
     <p class="req">Gratuit et open source · Apple Silicon · macOS 26 ou plus récent · moins de 1 Mo</p>
   </header>
+
+  <section id="etagere" aria-labelledby="e">
+    <h2 id="e">Une étagère au-dessus de tout.</h2>
+    <p class="lead">Glisse un fichier vers le haut de l'écran, change d'app, reprends-le. Plus besoin de jongler avec deux fenêtres.</p>
+    <div class="shelf-grid scene" id="scene">
+      <div class="mac" role="img" aria-label="Animation : un fichier glissé du Finder vers l'île, puis déposé dans Mail.">
+        <div class="screen" aria-hidden="true">
+          <div class="menubar"><span>Finder</span><span>10:42</span></div>
+          <div class="win win-a"><div class="bar"><i></i><i></i><i></i><span>Documents</span></div><div class="tiles"><div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div></div></div>
+          <div class="win win-b"><div class="bar"><i></i><i></i><i></i><span>Nouveau message</span></div><div class="line"></div><div class="line s"></div><div class="line"></div><div class="attach"></div></div>
+          <div class="isl">
+            <div class="zone">Dépose ici</div>
+            <div class="tray">Étagère</div>
+            <div class="mini"><span>▤</span><span>1</span></div>
+          </div>
+          <div class="doc">PDF</div>
+          <svg class="cursor" viewBox="0 0 24 24"><path d="M5 2l14 12-6.5 .6 3.8 7.4-3 1.500-3.7-7.5L5 20z" fill="#000" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <ol class="beats">
+        <li class="b1"><b>Glisse</b>Amène le fichier en haut de l'écran, l'île s'ouvre.</li>
+        <li class="b2"><b>Change d'app</b>Il t'attend dans l'encoche, sur tous tes bureaux.</li>
+        <li class="b3"><b>Reprends-le</b>Sors-le de l'île et dépose-le où tu veux.</li>
+      </ol>
+    </div>
+  </section>
 
   <section id="fonctions" aria-labelledby="f">
     <h2 id="f">Tout tient dans la barre de menus.</h2>
@@ -154,7 +256,11 @@ footer p+p{margin-top:6px}
         <p>Si tu es inactif et que la webcam ne voit personne, l'écran se verrouille.</p>
         <div class="demo chips"><span>Webcam ~4 s</span><span>Traitement local</span></div>
       </article>
-      <article class="card" style="grid-column:1/-1">
+      <article class="card wide">
+        <h3>Chargeur et batterie</h3>
+        <p>Branche ton Mac : l'île affiche le niveau et le temps de charge. Sous 20 %, elle te dit quelle app consomme le plus.</p>
+      </article>
+      <article class="card wide">
         <h3>Les réglages que macOS cache</h3>
         <p>Dock, Finder, icônes du bureau, fichiers cachés, format des captures d'écran. Un clic pour changer, un clic pour tout réinitialiser.</p>
       </article>
@@ -178,7 +284,8 @@ footer p+p{margin-top:6px}
       <div>
         <h3>Confidentialité</h3>
         <ul>
-          <li>Aucun compte, aucune télémétrie, aucune donnée envoyée : l'app n'a pas de code réseau.</li>
+          <li>Aucun compte, aucune télémétrie, aucune donnée envoyée.</li>
+          <li>Seule connexion possible : la vérification des mises à jour sur GitHub. Elle est désactivée tant que tu ne l'acceptes pas.</li>
           <li>Le presse-papier reste en mémoire et disparaît quand tu quittes l'app.</li>
           <li>Les images de la webcam sont analysées puis jetées.</li>
           <li>Le code est open source (licence MIT), tu peux tout vérifier.</li>
@@ -190,6 +297,7 @@ footer p+p{margin-top:6px}
           <li>La musique ne marche qu'avec Musique et Spotify, pas dans un navigateur.</li>
           <li>La webcam détecte un visage, pas le tien : elle ne déverrouille rien.</li>
           <li>La chaleur s'affiche en niveaux, pas en degrés.</li>
+          <li>Les mises à jour se téléchargent à la main : l'app te prévient, sans s'installer seule.</li>
           <li>Le verrouillage repose sur une API privée qu'une mise à jour de macOS pourrait casser.</li>
         </ul>
       </div>
@@ -204,6 +312,10 @@ footer p+p{margin-top:6px}
 
 <script>
 (function () {
+  var scene = document.getElementById('scene');
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (e) { scene.classList.toggle('run', e[0].isIntersecting); }, { threshold: .25 }).observe(scene);
+  } else { scene.classList.add('run'); }
   var island = document.getElementById('island');
   var states = island.querySelectorAll('.state');
   var i = 0;

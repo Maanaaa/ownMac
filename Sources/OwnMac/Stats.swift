@@ -89,20 +89,10 @@ final class SystemStats: ObservableObject {
     }
 
     private func sampleBattery() {
-        guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-              let list = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef] else { batteryLevel = nil; return }
-        for ps in list {
-            guard let d = IOPSGetPowerSourceDescription(blob, ps)?.takeUnretainedValue() as? [String: Any],
-                  (d[kIOPSTypeKey] as? String) == kIOPSInternalBatteryType else { continue }
-            let cur = d[kIOPSCurrentCapacityKey] as? Double ?? Double(d[kIOPSCurrentCapacityKey] as? Int ?? 0)
-            let max = d[kIOPSMaxCapacityKey] as? Double ?? Double(d[kIOPSMaxCapacityKey] as? Int ?? 100)
-            batteryLevel = max > 0 ? cur / max : nil
-            charging = (d[kIOPSIsChargingKey] as? Bool) ?? false
-            let key = charging ? kIOPSTimeToFullChargeKey : kIOPSTimeToEmptyKey
-            if let m = d[key] as? Int, m > 0 { batteryMinutes = m } else { batteryMinutes = nil }
-            return
-        }
-        batteryLevel = nil
+        let info = BatteryInfo.read()
+        batteryLevel = info?.level
+        charging = info?.charging ?? false
+        batteryMinutes = info?.minutes
     }
 
     private func sampleNetwork() {
