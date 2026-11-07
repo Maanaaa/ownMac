@@ -2,7 +2,8 @@ import AVFoundation
 import Vision
 import AppKit
 
-/// Verrouille l'écran quand aucun visage n'est détecté devant la webcam pendant N secondes.
+/// Verrouille l'écran si tu es inactif (ni clavier ni souris) ET qu'aucun visage n'est vu.
+/// La caméra ne s'allume que ~3 s lors de cette vérification, jamais en continu.
 /// Tout est traité en local, aucune image n'est enregistrée.
 final class PresenceMonitor: NSObject, ObservableObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     @Published var enabled: Bool { didSet { UserDefaults.standard.set(enabled, forKey: "presence.enabled"); enabled ? start() : stop() } }
@@ -11,41 +12,66 @@ final class PresenceMonitor: NSObject, ObservableObject, AVCaptureVideoDataOutpu
 
     private let session = AVCaptureSession()
     private let queue = DispatchQueue(label: "ownmac.presence")
-    private var lastSeen = Date()
-    private var lastAnalysis = Date.distantPast
     private var configured = false
+    private var timer: Timer?
+    private var screenOff = false
+    // État de la vérification (accédé sur `queue`)
+    private var checking = false
+    private var checkStart = Date.distantPast
+    private var lastAnalysis = Date.distantPast
+    private var lastCheckEnd = Date.distantPast
 
     override init() {
         enabled = UserDefaults.standard.bool(forKey: "presence.enabled")
         let d = UserDefaults.standard.integer(forKey: "presence.delay")
-        delay = d == 0 ? 30 : d
+        delay = [30, 60, 120, 300].contains(d) ? d : 60
         super.init()
         let nc = NSWorkspace.shared.notificationCenter
-        // Coupe la caméra quand l'écran dort / la session est verrouillée, la relance au retour
         for n in [NSWorkspace.screensDidSleepNotification, NSWorkspace.sessionDidResignActiveNotification] {
-            nc.addObserver(forName: n, object: nil, queue: .main) { [weak self] _ in self?.pause() }
+            nc.addObserver(forName: n, object: nil, queue: .main) { [weak self] _ in self?.screenOff = true; self?.abortCheck() }
         }
         for n in [NSWorkspace.screensDidWakeNotification, NSWorkspace.sessionDidBecomeActiveNotification] {
-            nc.addObserver(forName: n, object: nil, queue: .main) { [weak self] _ in self?.resume() }
+            nc.addObserver(forName: n, object: nil, queue: .main) { [weak self] _ in self?.screenOff = false }
         }
-        DistributedNotificationCenter.default().addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in self?.pause() }
-        DistributedNotificationCenter.default().addObserver(forName: .init("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in self?.resume() }
+        let dc = DistributedNotificationCenter.default()
+        dc.addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in self?.screenOff = true; self?.abortCheck() }
+        dc.addObserver(forName: .init("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in self?.screenOff = false }
         if enabled { start() }
     }
-
-    private func pause() { queue.async { if self.session.isRunning { self.session.stopRunning() } } }
-    private func resume() { if enabled { lastSeen = Date(); queue.async { if self.configured, !self.session.isRunning { self.session.startRunning() } } } }
 
     func start() {
         AVCaptureDevice.requestAccess(for: .video) { ok in
             DispatchQueue.main.async {
                 guard ok else { self.status = "Accès caméra refusé (Réglages Système > Confidentialité)"; self.enabled = false; return }
-                self.queue.async { self.configureAndRun() }
+                self.status = "Actif"
+                self.timer?.invalidate()
+                self.timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.tick() }
             }
         }
     }
 
-    private func configureAndRun() {
+    func stop() {
+        timer?.invalidate(); timer = nil; status = ""
+        abortCheck()
+    }
+
+    /// Secondes depuis le dernier clavier / souris / trackpad.
+    private var idleSeconds: Double {
+        CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
+    }
+
+    private func tick() {
+        guard enabled, !screenOff else { return }
+        queue.async {
+            guard !self.checking, Date().timeIntervalSince(self.lastCheckEnd) >= Double(self.delay) else { return }
+            guard self.idleSeconds >= Double(self.delay) else { return }
+            self.beginCheck()
+        }
+    }
+
+    // MARK: vérification ponctuelle (sur `queue`)
+
+    private func beginCheck() {
         if !configured {
             session.beginConfiguration()
             session.sessionPreset = .low
@@ -63,26 +89,39 @@ final class PresenceMonitor: NSObject, ObservableObject, AVCaptureVideoDataOutpu
             session.commitConfiguration()
             configured = true
         }
-        lastSeen = Date()
-        if !session.isRunning { session.startRunning() }
-        DispatchQueue.main.async { self.status = "Actif" }
+        checking = true
+        checkStart = Date()
+        lastAnalysis = .distantPast
+        session.startRunning()
     }
 
-    func stop() { queue.async { if self.session.isRunning { self.session.stopRunning() } }; status = "" }
-
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        let now = Date()
-        guard now.timeIntervalSince(lastAnalysis) >= 1 else { return }   // 1 analyse / seconde
-        lastAnalysis = now
-        guard let px = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        let req = VNDetectFaceRectanglesRequest()
-        try? VNImageRequestHandler(cvPixelBuffer: px, orientation: .up).perform([req])
-        if let r = req.results, !r.isEmpty {
-            lastSeen = now
-        } else if now.timeIntervalSince(lastSeen) >= Double(delay) {
-            lastSeen = now
+    private func endCheck(faceFound: Bool) {
+        guard checking else { return }
+        checking = false
+        lastCheckEnd = Date()
+        session.stopRunning()
+        if !faceFound && idleSeconds >= Double(delay) {   // toujours inactif : on verrouille
             DispatchQueue.main.async { Self.lockScreen() }
         }
+    }
+
+    private func abortCheck() {
+        queue.async { if self.checking { self.checking = false; self.lastCheckEnd = Date(); self.session.stopRunning() } }
+    }
+
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard checking else { return }
+        let now = Date()
+        // Si l'utilisateur est revenu pendant la vérification : on annule sans verrouiller.
+        if idleSeconds < 2 { endCheck(faceFound: true); return }
+        guard now.timeIntervalSince(lastAnalysis) >= 0.3 else { return }
+        lastAnalysis = now
+        if let px = CMSampleBufferGetImageBuffer(sampleBuffer) {
+            let req = VNDetectFaceRectanglesRequest()
+            try? VNImageRequestHandler(cvPixelBuffer: px, orientation: .up).perform([req])
+            if let r = req.results, !r.isEmpty { endCheck(faceFound: true); return }
+        }
+        if now.timeIntervalSince(checkStart) >= 4 { endCheck(faceFound: false) }   // 4 s : laisse le temps à l'exposition
     }
 
     /// API privée de login.framework (utilisée par la plupart des apps de verrouillage), repli sur pmset.

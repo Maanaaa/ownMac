@@ -153,16 +153,16 @@ struct SecurityRows: View {
     @EnvironmentObject var gate: BiometricGate
 
     var body: some View {
-        Toggle("Verrouiller si je m'éloigne", isOn: $presence.enabled)
+        Toggle("Verrouiller si inactif et absent", isOn: $presence.enabled)
         if presence.enabled {
             HStack {
-                Text("Après")
+                Text("Inactif depuis")
                 Spacer()
                 Picker("", selection: $presence.delay) {
-                    ForEach([15, 30, 60, 120], id: \.self) { Text("\($0) s").tag($0) }
+                    ForEach([30, 60, 120, 300], id: \.self) { Text($0 < 60 ? "\($0) s" : "\($0 / 60) min").tag($0) }
                 }.labelsHidden().fixedSize()
             }
-            Text("La caméra reste allumée (voyant vert). Analyse locale, rien n'est enregistré.")
+            Text("La caméra ne s'allume que ~4 s quand tu es inactif, pour vérifier ta présence. Analyse locale, rien n'est enregistré.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         if !presence.status.isEmpty && presence.status != "Actif" {
