@@ -18,6 +18,7 @@ nav{display:flex;justify-content:space-between;align-items:center;height:64px;fo
 nav a{text-decoration:none}
 nav .gh{font-weight:500;color:var(--soft)}
 nav .gh:hover{color:var(--ink)}
+nav .links{display:flex;gap:20px}
 
 /* L'île */
 .stage{position:absolute;top:0;left:50%;transform:translateX(-50%);z-index:5;display:flex;justify-content:center}
@@ -175,7 +176,7 @@ footer p+p{margin-top:6px}
 </head>
 <body>
 <div class="wrap">
-  <nav><a href="#top">OwnMac</a><a class="gh" href="https://github.com/Maanaaa/ownMac">GitHub</a></nav>
+  <nav><a href="#top">OwnMac</a><span class="links"><a class="gh" href="versions.html">Versions</a><a class="gh" href="https://github.com/Maanaaa/ownMac">GitHub</a></span></nav>
 </div>
 
 <div class="stage" aria-hidden="true">
@@ -305,7 +306,7 @@ footer p+p{margin-top:6px}
   </section>
 
   <footer>
-    <p><a href="https://github.com/Maanaaa/ownMac">Code source sur GitHub</a> · <a href="https://github.com/Maanaaa/ownMac/releases">Versions</a> · <a href="https://github.com/Maanaaa/ownMac/issues">Signaler un problème</a></p>
+    <p><a href="https://github.com/Maanaaa/ownMac">Code source sur GitHub</a> · <a href="versions.html">Versions</a> · <a href="https://github.com/Maanaaa/ownMac/issues">Signaler un problème</a></p>
     <p>OwnMac est un projet indépendant, sans lien avec Apple. Mac, macOS et Touch ID sont des marques d'Apple Inc.</p>
   </footer>
 </main>
