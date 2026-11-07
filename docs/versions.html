@@ -77,14 +77,25 @@ footer{padding:28px 0 52px;color:var(--soft);font-size:14px;border-top:1px solid
   function inline(text) { return esc(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); }
 
   function notes(body) {
-    return (body || '').replace(/\r\n/g, '\n').split(/\n{2,}/).map(function (block) {
-      var lines = block.trim().split('\n').filter(Boolean);
-      if (!lines.length) return '';
-      if (lines.every(function (l) { return /^[-*] /.test(l); })) {
-        return '<ul>' + lines.map(function (l) { return '<li>' + inline(l.slice(2)) + '</li>'; }).join('') + '</ul>';
+    var html = '', list = false, para = [];
+    function flushPara() { if (para.length) { html += '<p>' + para.join('<br>') + '</p>'; para = []; } }
+    function closeList() { if (list) { html += '</ul>'; list = false; } }
+    (body || '').replace(/\r\n/g, '\n').split('\n').forEach(function (raw) {
+      var line = raw.trim();
+      if (/^[-*] /.test(line)) {
+        flushPara();
+        if (!list) { html += '<ul>'; list = true; }
+        html += '<li>' + inline(line.slice(2)) + '</li>';
+        return;
       }
-      return '<p>' + lines.map(inline).join('<br>') + '</p>';
-    }).join('');
+      closeList();
+      if (!line) { flushPara(); return; }
+      var heading = line.match(/^#{1,6} +(.*)$/);
+      para.push(heading ? '<strong>' + inline(heading[1]) + '</strong>' : inline(line));
+    });
+    flushPara();
+    closeList();
+    return html;
   }
 
   function formatDate(iso) {
