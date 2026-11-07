@@ -9,8 +9,18 @@ App légère de barre de menus pour personnaliser macOS (SwiftUI, design Liquid 
 - Stats système en direct
 - Dynamic Island sur l'encoche (pastille sur les écrans sans encoche) : musique, minuteur, copies, vérification de présence, alertes de surchauffe et de surcharge avec le processus responsable
 
-## Build
+## Télécharger
+
+[Site](https://maanaaa.github.io/ownMac/) · [Dernière version](https://github.com/Maanaaa/ownMac/releases/latest)
+
+Nécessite macOS 26 ou plus récent et un Mac Apple Silicon. L'app n'est pas notariée : au premier lancement, autorise-la dans Réglages Système > Confidentialité et sécurité > Ouvrir quand même.
+
+## Compiler
+
 ```
-./build.sh   # compile, assemble OwnMac.app et l'installe dans ~/Applications
+./build.sh   # compile, installe dans ~/Applications et crée OwnMac.zip dans ~/Library/Caches/OwnMac-build
 ```
-Nécessite macOS 26+ et les outils Swift.
+
+## Licence
+
+[MIT](LICENSE). OwnMac est un projet indépendant, sans lien avec Apple.
