@@ -7,6 +7,7 @@ App légère de barre de menus pour personnaliser macOS (SwiftUI, design Liquid 
 - Lancement à la connexion
 - Verrouillage si inactif et absent (webcam brève), presse-papier protégé par Touch ID
 - Stats système en direct
+- Optimiser : nettoyage des caches, journaux, installeurs et corbeille, apps gourmandes, cache DNS
 - Dynamic Island sur l'encoche (pastille sur les écrans sans encoche) : musique, minuteur, copies, vérification de présence, alertes de surchauffe et de surcharge avec le processus responsable, chargeur et batterie
 - Étagère dans l'encoche : glisse des fichiers vers le haut de l'écran pour les reprendre ailleurs
 - Écran de bienvenue et vérification optionnelle des mises à jour

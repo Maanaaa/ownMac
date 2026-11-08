@@ -43,7 +43,7 @@ struct ContentView: View {
             header
             TabPicker()
             Group {
-                if store.tab == 2 { StatsView() } else if store.tab == 1 { if gate.isUnlocked { ClipboardView() } else { LockedView() } } else { SettingsList() }
+                if store.tab == 3 { OptimizerView() } else if store.tab == 2 { StatsView() } else if store.tab == 1 { if gate.isUnlocked { ClipboardView() } else { LockedView() } } else { SettingsList() }
             }
             footer
         }
@@ -81,7 +81,7 @@ struct ContentView: View {
 
 struct TabPicker: View {
     @EnvironmentObject var store: Store
-    private let tabs = ["Réglages", "Presse-papier", "Stats"]
+    private let tabs = ["Réglages", "Presse-papier", "Stats", "Optimiser"]
 
     var body: some View {
         GlassEffectContainer(spacing: 6) {
@@ -92,6 +92,7 @@ struct TabPicker: View {
                     } label: {
                         Text(tabs[i])
                             .font(.footnote.weight(.medium))
+                            .lineLimit(1).minimumScaleFactor(0.8)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 7)
                     }
